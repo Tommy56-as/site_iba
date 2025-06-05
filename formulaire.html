@@ -1,0 +1,623 @@
+<script type="text/javascript">
+    var gk_isXlsx = false;
+    var gk_xlsxFileLookup = {};
+    var gk_fileData = {};
+    function filledCell(cell) {
+      return cell !== '' && cell != null;
+    }
+    function loadFileData(filename) {
+    if (gk_isXlsx && gk_xlsxFileLookup[filename]) {
+        try {
+            var workbook = XLSX.read(gk_fileData[filename], { type: 'base64' });
+            var firstSheetName = workbook.SheetNames[0];
+            var worksheet = workbook.Sheets[firstSheetName];
+
+            // Convert sheet to JSON to filter blank rows
+            var jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, blankrows: false, defval: '' });
+            // Filter out blank rows (rows where all cells are empty, null, or undefined)
+            var filteredData = jsonData.filter(row => row.some(filledCell));
+
+            // Heuristic to find the header row by ignoring rows with fewer filled cells than the next row
+            var headerRowIndex = filteredData.findIndex((row, index) =>
+              row.filter(filledCell).length >= filteredData[index + 1]?.filter(filledCell).length
+            );
+            // Fallback
+            if (headerRowIndex === -1 || headerRowIndex > 25) {
+              headerRowIndex = 0;
+            }
+
+            // Convert filtered JSON back to CSV
+            var csv = XLSX.utils.aoa_to_sheet(filteredData.slice(headerRowIndex)); // Create a new sheet from filtered array of arrays
+            csv = XLSX.utils.sheet_to_csv(csv, { header: 1 });
+            return csv;
+        } catch (e) {
+            console.error(e);
+            return "";
+        }
+    }
+    return gk_fileData[filename] || "";
+    }
+ </script>
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Formulaire de Candidature - Institut des Beaux-Arts Nkongsamba</title>
+    <style>
+
+        body {
+            font-family: 'Roboto', Arial, sans-serif;
+            background: linear-gradient(135deg, #56be9f 0%, #8eac17 100%);
+            margin: 0;
+            color: #0f1011;
+            font-size: 16px;
+        }
+        .container {
+            max-width: 900px;
+            margin: auto;
+            background: #fff;
+            border-radius: 12px;
+            padding: 30px;
+            overflow: hidden;
+            justify-content: center;
+        }
+        h1 {
+            text-align: center;
+            color: #222425;
+            font-size: 2em;
+            margin-bottom: 20px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+        h2 h3{
+            color: #54718d;
+            font-size: 1.5em;
+            border-bottom: 3px solid #0f1011;
+            padding-bottom: 5px;
+            margin-top: 20px;
+        }
+        .form-page {
+            display: none;
+            opacity: 0;
+            transition: opacity 0.5s ease-in-out;
+        }
+        .form-page.active {
+            display: block;
+            opacity: 1;
+        }
+        label {
+            font-weight: 600;
+            color: #191a1b;
+            margin-bottom: 5px;
+            display: block;
+        }
+        input, select, textarea {
+            padding: 10px;
+            border: none;
+            border-bottom: 1px solid rgba(0, 0, 0, 0.65);
+            border-radius: 4px;
+            width: 90%;
+            font-size: 1em;
+            transition: border-color 0.3s, box-shadow 0.3s;
+        }
+        input:focus, select:focus, textarea:focus {
+            border-color: #3498db;
+            outline: none;
+            box-shadow: 0 0 5px rgba(52, 152, 219, 0.5);
+        }
+        .checkbox-group, .radio-group {
+            display: flex;
+            gap: 15px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+        .checkbox-group label, .radio-group label {
+            margin: 0;
+            font-weight: normal;
+            color: #0f9c9c;
+        }
+        button {
+            background: #3498db;
+            color: #fff;
+            padding: 12px 25px;
+            border: none;
+            border-radius: 5px;
+            font-size: 1.1em;
+            cursor: pointer;
+            transition: background 0.3s, transform 0.2s;
+        }
+        button:hover {
+            background: #2980b9;
+            transform: scale(1.05);
+        }
+        .next-btn, .add-row-btn {
+            display: none;
+            margin-top: 15px;
+        }
+        .add-row-btn {
+            background: #2ecc71;
+        }
+        .add-row-btn:hover {
+            background: #27ae60;
+        }
+        #output {
+            display: none;
+        }
+        .output-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px;
+            margin-bottom: 20px;
+        }
+        .output-header div {
+            width: 45%;
+            text-align: center;
+        }
+        .output-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+            background: #fff;
+        }
+        .output-table th, .output-table td {
+            border: 1px solid #000;
+            padding: 12px;
+            text-align: left;
+            background: #f9f9f9;
+        }
+        .output-table th {
+            background: #3498db;
+            color: #030303;
+        }
+        
+        .photo-placeholder {
+            width: 40px;
+            height: 100Px;
+            margin-left: auto;
+            text-align: center;
+            line-height: 120px;
+            color: #000;
+            font-weight: bold;
+            background: #fff;
+        }
+
+        .academic-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+        }
+        .academic-table td {
+            padding: 10px;
+            border: 1px solid #695656;
+        }
+        .academic-table input {
+            border: none;
+            background: transparent;
+            width: 100%;
+        }
+        .logo {
+             height: 3cm;
+             justify-content: center;
+             border-radius: 60%;
+             margin-right: 10px;
+        }
+        .page {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 10px;
+          margin-top: 10px;
+          font-size: 16px;
+    }
+    .column2 {
+        flex: 1;
+        justify-content: space-around;
+    }
+    </style>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.3/html2pdf.bundle.min.js"></script>
+</head>
+<body>
+   
+    <div class="container">
+        <form id="candidateForm">
+            <!-- Page 1: Cycles et Statut -->
+            <div class="form-page active" id="page1">
+                <h2>Cycles et Statut du Candidat</h2>
+                <label>Cycles:</label>
+                <div class="radio-group">
+                    <label>LICENCE<input type="radio" name="cycle" value="licence" required></label>
+                    <label>MASTER<input type="radio" name="cycle" value="master"> </label>
+                </div>
+                <div class="radio-group">
+                    <label> Premiere Annee<input type="radio" name="year" value="first" required></label>
+                    <label> Troisieme Annee<input type="radio" name="year" value="third"> </label>
+                </div>
+                <label>Statut du Candidat:</label>
+                <div class="radio-group">
+                    <label><input type="radio" name="status" value="regular" required> Candidat régulier</label>
+                    <label><input type="radio" name="status" value="free"> Auditeur libre</label>
+                </div>
+                <button type="button" class="next-btn" id="next1">Suivant</button>
+            </div>
+
+            <!-- Page 2: Identification -->
+            <div class="form-page" id="page2">
+                <h2>I. Identification du Candidat</h2>
+                <label>Noms et Prénoms:</label>
+                <input type="text" name="fullName" required>
+                <label>Sexe:</label>
+                <div class="radio-group">
+                    <label><input type="radio" name="sex" value="Masculin" required> Masculin </label>
+                    <label><input type="radio" name="sex" value="Feminin"> Feminin </label>
+                </div><br>
+                <label>Date et Lieu de Naissance:</label>
+                <input type="text" name="birthInfo" required>
+                <label>Nationalité:</label>
+                <input type="text" name="nationality" required>
+                <label>Région d'origine:</label>
+                <input type="text" name="region" required>
+                <label>Département:</label>
+                <input type="text" name="department" required>
+                <label>Ville:</label>
+                <input type="text" name="city" required>
+                <label>Adresse complète:</label>
+                <input type="text" name="address" required>
+                <label>BP:</label>
+                <input type="text" name="bp" required>
+                <label>Portable:</label>
+                <input type="text" name="phone" required>
+                <label>Email:</label>
+                <input type="email" name="email" required>
+                <label>Filière choisie:</label>
+                <select name="specialty"required>
+                    <option  value="Cinema et AudioVisuel" >Cinema et AudioVisuel</option>
+                    <option  value="Architecture et Urbanisme">Architecture et Urbanisme</option>
+                    <option  value="Etudes Theatrales" >Etudes Theatralesl</option>
+                    <option  value="Patrimoine, Muselogie et Tourisme">Patrimoine, Muselogie et Tourisme</option>
+                    <option  value="Art Plastique et Histoire de l'Art" >Art Plastique et Histoire de l'Art</option>
+                    <option  value="Musicologie, Gestion et Conservation de Patrimoine">Musicologie, Gestion et Conservation de Patrimoine</option>
+                    <option  value="Arts et Metiers de l'Habillement">Arts et Metiers de l'Habillement</option>
+                </select>    
+                <label>Langue officielle:</label>
+                <div class="radio-group">
+                    <label><input type="radio" name="language" value="Francais" required> Francais</label>
+                    <label><input type="radio" name="language" value="Anglais"> Anglais </label>
+                </div>
+                <button type="button" class="next-btn" id="next2">Suivant</button>
+            </div>
+
+            <!-- Page 3: Profil Scolaire -->
+            <div class="form-page" id="page3">
+                <h2>II. Profil Scolaire et Académique</h2>
+                <table class="academic-table" id="academicTable">
+                    <thead>
+                        <tr>
+                            <th>Année scolaire</th>
+                            <th>Établissement</th>
+                            <th>Classe ou niveau</th>
+                            <th>Série ou option</th>
+                            <th>Mention ou moyenne</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><input type="text" name="school_year_0" class="school-year"required placeholder="e.g. 2023 / 2024"></td>
+                            <td><input type="text" name="school_0" class="school" required></td>
+                            <td><input type="text" name="class_0" class="class" required></td>
+                            <td><input type="text" name="series_0" class="series"required></td>
+                            <td><input type="text" name="grade_0" class="grade"required></td>
+                        </tr>
+                    </tbody>
+                </table>
+                <button type="button" class="add-row-btn" id="addRowBtn">+</button>
+                <button type="button" class="next-btn" id="next3">Suivant</button>
+            </div>
+
+            <!-- Page 4: Diplôme -->
+            <div class="form-page" id="page4">
+                <h2>III. Diplôme Obtenu</h2>
+                <label>Diplôme:</label>
+                <input type="text" name="diploma">
+                <button type="button" class="next-btn" id="next4">Suivant</button>
+            </div>
+
+            <!-- Page 5: Centres -->
+            <div class="form-page" id="page5">
+                <h2>IV. Centres de Composition</h2>
+                <div class="checkbox-group">
+                    <label><input type="checkbox" name="center" value="Nkongsamba"> Nkongsamba</label>
+                    <!--<label><input type="checkbox" name="center" value="Douala"> Douala</label>
+                    <label><input type="checkbox" name="center" value="Yaoundé"> Yaoundé</label>-->
+                </div>
+                <button type="submit">Générer le PDF</button>
+            </div>
+        </form>
+
+        <div id="output">
+            <div class="output-header">
+                <div style=" width: 800px;">
+                    <p>RÉPUBLIQUE DU CAMEROUN<br>
+                       Paix–Travail–Patrie</p>
+                      <p>**************<br>
+             MINISTÈRE DE L’ENSEIGNEMENT SUPÉRIEUR<br>
+                        **************<br>
+                     UNIVERSITÉ DE DOUALA<br>
+                        **************<br>
+             INSTITUT DES BEAUX-ARTS A NKONGSAMBA<br>
+                        ***************
+            </p>
+                </div>
+                <div><img src="Images/images.jpeg" class="logo" alt=""></div>
+                <div><img src="Images/logo.jpeg" class="logo" alt=""></div>
+                <div style=" width: 800px;">
+                    <p>REPUBLIC OF CAMEROON<br>
+                       Peace–Work–Fatherland</p>
+                     <p>  ***************<br>
+                   MINISTRY OF HIGHER EDUCATION<br>
+                          ***************<br>
+                     THE UNIVERSITY OF DOUALA<br>
+                          ***************<br>
+                  INSTITUTE OF FINE ARTS AT NKONGSAMBA<br>
+                          ***************
+                </p>
+                </div>
+            </div>
+            <h1>FICHE D’IDENTIFICATION DU CANDIDAT AU CONCOURS</h1>
+            <h2>Année Académique 2024/2025</h2>
+            <div class="output-header">
+                <div>
+                    <p><strong>CYCLES:</strong> <span id="out_cycles"></span></p>
+                    <p><strong>STATUT DU CANDIDAT:</strong> <span id="out_status"></span></p>
+                </div>
+                <div class="photo-placeholder">COLLER UNE PHOTO</span></div>
+            </div>
+            <h2>I. Identification du Candidat</h2>
+            <div class="page">
+              <div class="colomn1">
+                <p><strong>Noms et Prénoms:</strong> <span id="out_fullName"></span></p>
+                <p><strong>Sexe:</strong> <span id="out_sex"></span></p>
+                <p><strong>Date et Lieu de Naissance:</strong> <span id="out_birthInfo"></span></p>
+                <p><strong>Nationalité:</strong> <span id="out_nationality"></span></p>
+                <p><strong>Région d'origine:</strong> <span id="out_region"></span></p>
+                <p><strong>Département:</strong> <span id="out_department"></span></p>
+                <p><strong>Ville:</strong> <span id="out_city"></span></p>
+               </div>
+               <div style=" width: 150px">
+               </div>
+               <div >
+               </div>
+               <div class="colomn2">
+                <p><strong>Adresse complète:</strong> <span id="out_address"></span></p>
+                <p><strong>BP:</strong> <span id="out_bp"></span></p>
+                <p><strong>Portable:</strong> <span id="out_phone"></span></p>
+                <p><strong>Email:</strong> <span id="out_email"></span></p>
+                <p><strong>Filière choisie:</strong> <span id="out_specialty"></span></p>
+                <p><strong>Langue officielle:</strong> <span id="out_language"></span></p>
+               </div>
+            </div>
+
+            <div class="page-break">
+                <h2>II. Profil Scolaire et Académique</h2>
+                <table class="output-table" id="out_academic">
+                    <thead>
+                        <tr>
+                            <th>Année scolaire</th>
+                            <th>Établissement</th>
+                            <th>Classe ou niveau</th>
+                            <th>Série ou option</th>
+                            <th>Mention ou moyenne</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+            <div class="page-break">
+                <h2>III. Diplôme Obtenu</h2>
+                <p><span id="out_diploma"></span></p>
+            </div>
+            <div class="page-break">
+                <h2>IV. Centres de Composition</h2>
+                <p><span id="out_centers"></span></p>
+                <p><strong>Date et Signature du Candidat:</strong> _________________</p>
+                <p>(**) Région et Département d’origine de votre père</p>
+                <p>Contacts: (237) 699 63 07 72 / 699 31 48 07 / 681 56 05 70 / 693 47 17 13 / 677 77 20 39 / 676 94 20 55 / 674 51 06 95</p>
+                <p>e-mail: infos_iba@univ-douala.com</p>
+            </div>
+        </div>
+    </div>
+    <script>
+
+        let currentPage = 1;
+        let academicRowCount = 0;
+
+        // Show Next button when required fields are filled
+        function checkFields(pageId, nextBtnId) {
+            const page = document.getElementById(pageId);
+            const requiredInputs = page.querySelectorAll('input[required]');
+            const nextBtn = document.getElementById(nextBtnId);
+            let allFilled = true;
+
+            requiredInputs.forEach(input => {
+                if (!input.value.trim()) {
+                    allFilled = false;
+                }
+            });
+
+            if (allFilled) {
+                nextBtn.style.display = 'block';
+            } else {
+                nextBtn.style.display = 'none';
+            }
+        }
+
+        // Page 1: Cycles et Statut
+        document.getElementById('page1').addEventListener('input', () => {
+            checkFields('page1', 'next1');
+        });
+
+        // Page 2: Identification
+        document.getElementById('page2').addEventListener('input', () => {
+            checkFields('page2', 'next2');
+        });
+        // Page 3: Profil Scolaire
+        function checkAcademicRow() {
+            const rows = document.querySelectorAll('#academicTable tbody tr');
+            const lastRow = rows[rows.length - 1];
+            const inputs = lastRow.querySelectorAll('input');
+            const addRowBtn = document.getElementById('addRowBtn');
+            const nextBtn = document.getElementById('next3');
+            let allFilled = true;
+
+            inputs.forEach(input => {
+                if (!input.value.trim()) {
+                    allFilled = false;
+                }
+            });
+
+            if (allFilled) {
+                addRowBtn.style.display = 'block';
+                nextBtn.style.display = 'block';
+            } else {
+                addRowBtn.style.display = 'none';
+                nextBtn.style.display = 'none';
+            }
+        }
+
+        document.getElementById('academicTable').addEventListener('input', checkAcademicRow);
+
+        document.getElementById('addRowBtn').addEventListener('click', () => {
+            academicRowCount++;
+            const tbody = document.querySelector('#academicTable tbody');
+            const newRow = document.createElement('tr');
+            newRow.innerHTML = `
+                <td><input type="text" name="school_year_${academicRowCount}" class="school-year" placeholder="e.g. 2023 / 2024"></td>
+                <td><input type="text" name="school_${academicRowCount}" class="school"></td>
+                <td><input type="text" name="class_${academicRowCount}" class="class"></td>
+                <td><input type="text" name="series_${academicRowCount}" class="series"></td>
+                <td><input type="text" name="grade_${academicRowCount}" class="grade"></td>
+            `;
+            tbody.appendChild(newRow);
+            checkAcademicRow();
+        });
+
+        // Page 4: Diplôme
+        document.getElementById('page4').addEventListener('input', () => {
+            const diploma = document.querySelector('input[name="diploma"]').value.trim();
+            const nextBtn = document.getElementById('next4');
+            nextBtn.style.display = diploma ? 'block' : 'none';
+        });
+
+        // Navigation between pages
+        document.getElementById('next1').addEventListener('click', () => {
+            document.getElementById('page1').classList.remove('active');
+            document.getElementById('page2').classList.add('active');
+            currentPage = 2;
+        });
+
+        document.getElementById('next2').addEventListener('click', () => {
+            document.getElementById('page2').classList.remove('active');
+            document.getElementById('page3').classList.add('active');
+            currentPage = 3;
+        });
+
+        document.getElementById('next3').addEventListener('click', () => {
+            document.getElementById('page3').classList.remove('active');
+            document.getElementById('page4').classList.add('active');
+            currentPage = 4;
+        });
+
+        document.getElementById('next4').addEventListener('click', () => {
+            document.getElementById('page4').classList.remove('active');
+            document.getElementById('page5').classList.add('active');
+            currentPage = 5;
+        });
+
+        // Form submission and PDF generation
+        document.getElementById('candidateForm').addEventListener('submit', function(event) {
+            event.preventDefault();
+
+            // Collect form data
+            const formData = new FormData(this);
+            const cycles = Array.from(document.querySelectorAll('input[name="cycle"]:checked')).map(input => {
+                return input.value === 'licence' ? 'LICENCE' : 'MASTER';
+            }).join(', ');
+            const years = Array.from(document.querySelectorAll('input[name="year"]:checked')).map(input => {
+                return input.value === 'first' ? 'Première année' : 'Troisième année';
+            }).join(', ');
+            const status = formData.get('status') === 'regular' ? 'Candidat régulier' : 'Auditeur libre';
+            
+            const fullName = formData.get('fullName');
+            const sex = formData.get('sex');
+            const birthInfo = formData.get('birthInfo');
+            const nationality = formData.get('nationality');
+            const region = formData.get('region');
+            const department = formData.get('department');
+            const city = formData.get('city');
+            const address = formData.get('address');
+            const bp = formData.get('bp');
+            const phone = formData.get('phone');
+            const email = formData.get('email');
+            const specialty = formData.get('specialty');
+            const language = formData.get('language');
+            const diploma = formData.get('diploma');
+            const centers = Array.from(document.querySelectorAll('input[name="center"]:checked')).map(input => input.value).join(', ');
+
+            // Academic profile
+            const academicRows = [];
+            for (let i = 0; i <= academicRowCount; i++) {
+                const year = formData.get(`school_year_${i}`) || '';
+                const school = formData.get(`school_${i}`) || '';
+                const classLevel = formData.get(`class_${i}`) || '';
+                const series = formData.get(`series_${i}`) || '';
+                const grade = formData.get(`grade_${i}`) || '';
+                if (year || school || classLevel || series || grade) {
+                    academicRows.push(`<tr>
+                        <td>${year}</td>
+                        <td>${school}</td>
+                        <td>${classLevel}</td>
+                        <td>${series}</td>
+                        <td>${grade}</td>
+                    </tr>`);
+                }
+            }
+
+            // Populate output
+            document.getElementById('out_cycles').textContent = `${cycles} (${years})`;
+            document.getElementById('out_status').textContent = status;
+            document.getElementById('out_fullName').textContent = fullName;
+            document.getElementById('out_sex').textContent = sex;
+            document.getElementById('out_birthInfo').textContent = birthInfo;
+            document.getElementById('out_nationality').textContent = nationality;
+            document.getElementById('out_region').textContent = region;
+            document.getElementById('out_department').textContent = department;
+            document.getElementById('out_city').textContent = city;
+            document.getElementById('out_address').textContent = address;
+            document.getElementById('out_bp').textContent = bp;
+            document.getElementById('out_phone').textContent = phone;
+            document.getElementById('out_email').textContent = email;
+            document.getElementById('out_specialty').textContent = specialty;
+            document.getElementById('out_language').textContent = language;
+            document.getElementById('out_academic').querySelector('tbody').innerHTML = academicRows.join('');
+            document.getElementById('out_diploma').textContent = diploma;
+            document.getElementById('out_centers').textContent = centers;
+                  // Prompt user to print or save as PDF
+                  setTimeout(() => {
+                window.print();
+            }, 500);
+
+             // Hide form and show output
+            document.getElementById('output').style.display = 'block';
+            document.getElementById('candidateForm').style.display = 'none';
+            
+            const element = document.getElementById('output');
+            html2pdf().from(element).set({
+                filename: `fiche_candidature_${fullName}.pdf`,
+                html2canvas: { scale: 2 },
+                jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+            }).save();
+
+        });
+    </script>
+</body>
+</html>
